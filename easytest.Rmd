@@ -1,0 +1,49 @@
+---
+title: "RcppMLPACK Easy Test"
+author: "Aditya Samantaray"
+output: html_document
+---
+
+# Easy Test
+
+For an example for the kMeans function implemented in RcppMLPACK2, we'll use the trees and the wine datasets
+## Including the libraries and dataset for this test
+```{r echo= T, results='hide'}
+library("data.table")
+library("RcppMLPACK")
+library("microbenchmark")
+library("directlabels")
+library("ggplot2")
+library("dplyr")
+data(wine, package = "rattle")
+data(trees, package = "datasets")
+```
+
+Fitting the kMeans model with the RcppMLPACK package
+```{r fitting}
+kMeans(t(trees), 3)
+wine$Type <- NULL
+kMeans(t(wine), 4)
+```
+Now, we'll try to benchmark the RcppMLPACK kMeans implementation with the default kmeans implementation in R  
+Note: kMeans() is the RcppMLPACK implementation whereas kmeans() is the default implementation in R  
+For benchmarking, we'll use the microbenchmark package. It will run the functions 100 times and then provide us with the mean runtime.
+```{r benchmark}
+X <- wine
+res <- data.frame()
+for(i in 40:nrow(X))
+{
+  evaltime <- microbenchmark(kMeans(t(X), 3), kmeans(X, 3), times = 100L)
+  res <- bind_rows(res, data.frame(i, list(summary(evaltime)[,c('min','mean','max')])))
+}
+res <- cbind.data.frame(c("MLPACK Kmeans", "R Kmeans"), res)
+names(res) <- c("expr", names(res)[2:5])
+p <- ggplot(res, aes(x = i))+
+  #geom_ribbon(aes(ymin = min, ymax = max, fill = expr, group = expr), alpha = 1/2)+
+  geom_line(aes(y = mean, group = expr, colour = expr))+
+  ggtitle('Runtime(in milliseconds) vs Dataset Size') +
+  xlab('Dataset Size') +
+  ylab('Runtime (in milliseconds)')
+direct.label(p,"angled.boxes")
+```
+Therefore, we see that the kMeans() method implemented in the RcppMLPACK package is much faster(twice the speed) on an average than the default implementation of kmeans() in R.
